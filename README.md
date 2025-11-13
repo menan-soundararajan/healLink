@@ -1,6 +1,98 @@
-# Getting Started with Create React App
+# React App with Google OAuth and OpenMRS Integration
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+This project is a React application that integrates Google OAuth authentication with OpenMRS patient data fetching. After a successful Google login, the application automatically authenticates with OpenMRS and displays patient information using a hardcoded test email (`test@gmail.com`) for patient queries.
+
+## Features
+
+- ✅ Google OAuth 2.0 authentication
+- ✅ OpenMRS REST API integration
+- ✅ Automatic patient data fetching after login
+- ✅ Beautiful, responsive UI with Tailwind CSS
+- ✅ Patient information display in card format
+- ✅ Error handling and loading states
+- ✅ Proxy server for CORS handling
+
+## ⚠️ Important: Proxy Server Required
+
+**The proxy server must be running for the application to work.** The React app connects to OpenMRS through a proxy server to avoid CORS issues.
+
+**Quick Start:**
+```bash
+npm run dev
+```
+This starts both the proxy server and React app automatically.
+
+**Having issues?** See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) for common problems and solutions.
+
+## Documentation
+
+For detailed setup and configuration instructions, see the [Documentation](./docs/) folder:
+
+- **[Documentation Overview](./docs/README.md)** - Complete documentation index
+- **[Quick Start Guide](./docs/QUICK_START.md)** - Quick setup guide
+- **[Google OAuth Setup](./docs/GOOGLE_OAUTH_SETUP.md)** - Detailed Google OAuth configuration guide
+- **[OpenMRS Integration](./docs/OPENMRS_INTEGRATION.md)** - OpenMRS API integration documentation
+- **[CORS Proxy Setup](./docs/CORS_PROXY_SETUP.md)** - Proxy server setup to resolve CORS issues
+- **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** - Common issues and solutions
+
+## Quick Setup
+
+### 1. Install Dependencies
+
+```bash
+npm install
+```
+
+### 2. Configure Google OAuth
+
+1. Create a `.env` file in the root directory
+2. Add your Google Client ID:
+   ```
+   REACT_APP_GOOGLE_CLIENT_ID=your_google_client_id_here
+   ```
+3. See [Google OAuth Setup Guide](./docs/GOOGLE_OAUTH_SETUP.md) for detailed instructions
+
+### 3. Configure OpenMRS
+
+OpenMRS configuration is set in `src/services/openmrsService.js`. Default settings:
+- Base URL: `https://openmrs6.arogya.cloud`
+- Username: `admin`
+- Password: `Admin123`
+- Patient Search Email: `test@gmail.com` (configured in `src/App.js`)
+
+**Note:** The application uses a hardcoded test email (`test@gmail.com`) to search for patients in OpenMRS, regardless of which Google account is used for login.
+
+See [OpenMRS Integration Guide](./docs/OPENMRS_INTEGRATION.md) for configuration options.
+
+### 4. Start Development Server
+
+**Important:** Due to CORS restrictions, you need to run a proxy server to access the OpenMRS API.
+
+#### Option A: Run Both Servers Together (Recommended)
+
+```bash
+npm run dev
+```
+
+This will start:
+- Proxy server on `http://localhost:3001`
+- React app on `http://localhost:3000`
+
+#### Option B: Run Servers Separately
+
+Terminal 1 - Proxy Server:
+```bash
+npm run server
+```
+
+Terminal 2 - React App:
+```bash
+npm start
+```
+
+The app will open at [http://localhost:3000](http://localhost:3000)
+
+**Note:** See [CORS Proxy Setup Guide](./docs/CORS_PROXY_SETUP.md) for detailed information about the proxy server and troubleshooting CORS issues.
 
 ## Available Scripts
 
@@ -8,11 +100,18 @@ In the project directory, you can run:
 
 ### `npm start`
 
-Runs the app in the development mode.\
+Runs the React app in development mode.\
 Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+**Note:** You also need to run the proxy server (`npm run server`) to avoid CORS errors.
+
+### `npm run server`
+
+Runs the proxy server on port 3001 to handle OpenMRS API requests and resolve CORS issues.
+
+### `npm run dev`
+
+Runs both the proxy server and React app simultaneously (recommended for development).
 
 ### `npm test`
 
