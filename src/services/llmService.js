@@ -21,9 +21,26 @@ const LLM_API_URL = LLM_API_URLS[LLM_PROVIDER] || LLM_API_URLS.openai;
  * @returns {Promise<string>} Generated health advisory message
  */
 export const generateHealthAdvisory = async (medicationResponse, diagnosisResponse) => {
+  // Check if running in production and log configuration status
+  const isProduction = process.env.NODE_ENV === 'production';
+  
   if (!LLM_API_KEY) {
-    console.warn('LLM API key not configured. Using fallback message.');
+    const errorMsg = isProduction 
+      ? 'LLM API key not configured in Vercel. Please add REACT_APP_LLM_API_KEY environment variable. Using fallback message.'
+      : 'LLM API key not configured. Using fallback message.';
+    console.warn(errorMsg);
+    console.warn('LLM Provider:', LLM_PROVIDER);
+    console.warn('LLM API URL:', LLM_API_URL);
     return getFallbackMessage();
+  }
+
+  if (isProduction) {
+    console.log('LLM Configuration:', {
+      provider: LLM_PROVIDER,
+      apiUrl: LLM_API_URL,
+      hasApiKey: !!LLM_API_KEY,
+      apiKeyPrefix: LLM_API_KEY.substring(0, 10) + '...'
+    });
   }
 
   try {
@@ -96,7 +113,13 @@ Format the response with clear sections using ## for main headings. Be warm, sup
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('LLM API Error:', errorText);
+      console.error('LLM API Error:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText,
+        url: LLM_API_URL,
+        provider: LLM_PROVIDER
+      });
       throw new Error(`LLM API error: ${response.status} ${response.statusText}`);
     }
 
@@ -117,7 +140,13 @@ Format the response with clear sections using ## for main headings. Be warm, sup
     
     throw new Error('No response from LLM');
   } catch (error) {
-    console.error('Error generating health advisory:', error);
+    console.error('Error generating health advisory:', {
+      message: error.message,
+      stack: error.stack,
+      provider: LLM_PROVIDER,
+      apiUrl: LLM_API_URL,
+      hasApiKey: !!LLM_API_KEY
+    });
     return getFallbackMessage();
   }
 };

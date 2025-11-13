@@ -30,7 +30,11 @@ const HealthAdvisoryCard = ({ patientUuid }) => {
         setShouldShow(false);
       }
     } catch (err) {
-      console.error('Error checking conditions:', err);
+      console.error('Error checking conditions:', {
+        message: err.message,
+        stack: err.stack,
+        patientUuid: patientUuid
+      });
       setError(err.message || 'Failed to check health conditions');
     } finally {
       setLoading(false);
