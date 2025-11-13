@@ -17,8 +17,14 @@ const AppointmentsList = ({ patientUuid }) => {
     setVisits([]);
 
     try {
+      // Detect if running on Vercel or in production
+      const isVercel = window.location.hostname.includes('vercel.app') || process.env.NODE_ENV === 'production';
       const USE_PROXY = process.env.REACT_APP_USE_PROXY !== 'false';
-      const PROXY_URL = process.env.REACT_APP_PROXY_URL || 'http://localhost:3001/api/openmrs';
+      
+      // Use Vercel serverless function in production, local proxy in development
+      const PROXY_URL = isVercel 
+        ? '/api/openmrs' 
+        : (process.env.REACT_APP_PROXY_URL || 'http://localhost:3001/api/openmrs');
       const OPENMRS_BASE_URL = USE_PROXY ? PROXY_URL : 'https://openmrs6.arogya.cloud';
       
       const url = USE_PROXY

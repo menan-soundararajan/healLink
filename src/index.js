@@ -9,6 +9,11 @@ import reportWebVitals from './reportWebVitals';
 // Get it from: https://console.cloud.google.com/apis/credentials
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID_HERE';
 
+// Validate Client ID
+if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID === 'YOUR_GOOGLE_CLIENT_ID_HERE') {
+  console.error('⚠️ Google OAuth Client ID is not configured. Please set REACT_APP_GOOGLE_CLIENT_ID environment variable.');
+}
+
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>

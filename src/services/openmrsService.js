@@ -1,7 +1,21 @@
 // Use proxy server in development to avoid CORS issues
-// In production, you can either use the proxy or configure CORS on OpenMRS server
+// In production (Vercel), use the serverless function at /api/openmrs
+// Note: window is not available during SSR, so we check it safely
+const isVercel = typeof window !== 'undefined' && (
+  window.location.hostname.includes('vercel.app') || 
+  process.env.NODE_ENV === 'production'
+);
 const USE_PROXY = process.env.REACT_APP_USE_PROXY !== 'false'; // Default to true
-const PROXY_URL = process.env.REACT_APP_PROXY_URL || 'http://localhost:3001/api/openmrs';
+
+// Determine proxy URL based on environment
+let PROXY_URL;
+if (isVercel) {
+  // Use Vercel serverless function in production
+  PROXY_URL = '/api/openmrs';
+} else {
+  // Use local proxy server in development
+  PROXY_URL = process.env.REACT_APP_PROXY_URL || 'http://localhost:3001/api/openmrs';
+}
 
 // OpenMRS Server Configuration
 // Base URL: https://openmrs6.arogya.cloud
