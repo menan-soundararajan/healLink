@@ -1,7 +1,6 @@
 // Vercel Serverless Function to proxy OpenMRS API requests
-// This resolves CORS issues in production
+// Using a single file that handles all routes via query parameters
 
-// Vercel uses a different handler format - we need to check req.url directly
 export default async function handler(req, res) {
   // Handle OPTIONS for CORS preflight
   if (req.method === 'OPTIONS') {
@@ -11,7 +10,7 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  // Only allow GET requests for now (can be extended)
+  // Only allow GET requests for now
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -21,26 +20,21 @@ export default async function handler(req, res) {
   const OPENMRS_USERNAME = process.env.OPENMRS_USERNAME || 'admin';
   const OPENMRS_PASSWORD = process.env.OPENMRS_PASSWORD || 'Admin123';
 
-  // Extract path from req.url
-  // req.url will be like: /api/openmrs/ws/rest/v1/session?param=value
-  // We need to extract everything after /api/openmrs/
+  // Get the path from query parameter (set by vercel.json rewrite)
+  // The rewrite converts /api/openmrs/ws/rest/v1/session to /api/openmrs?path=ws/rest/v1/session
   let apiPath = '';
   let queryString = '';
   
-  if (req.url) {
-    // Remove /api/openmrs prefix
-    const urlPath = req.url.replace(/^\/api\/openmrs\/?/, '');
+  // Get path from query parameter (set by Vercel rewrite rule)
+  if (req.query.path) {
+    // path can be a string or array depending on how Vercel parses it
+    if (Array.isArray(req.query.path)) {
+      apiPath = req.query.path.join('/');
+    } else {
+      apiPath = req.query.path;
+    }
     
-    // Split path and query
-    const [path, query] = urlPath.split('?');
-    apiPath = path || '';
-    queryString = query ? `?${query}` : '';
-  } else if (req.query.path) {
-    // Fallback to query.path if req.url is not available
-    const path = req.query.path || [];
-    apiPath = Array.isArray(path) ? path.join('/') : path;
-    
-    // Get all query parameters except 'path'
+    // Get all other query parameters (patient, orderType, etc.)
     const queryParams = new URLSearchParams();
     Object.keys(req.query).forEach(key => {
       if (key !== 'path') {
@@ -53,20 +47,29 @@ export default async function handler(req, res) {
       }
     });
     queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
+  } else if (req.url) {
+    // Fallback: extract from URL directly if rewrite didn't work
+    const urlPath = req.url.replace(/^\/api\/openmrs\/?/, '').split('?')[0];
+    apiPath = urlPath || '';
+    
+    // Extract query string from original URL
+    const urlMatch = req.url.match(/\?(.+)$/);
+    if (urlMatch) {
+      queryString = `?${urlMatch[1]}`;
+    }
   }
 
   // If no path, return error
   if (!apiPath) {
     return res.status(400).json({ 
       error: 'Invalid request',
-      message: 'No API path provided',
+      message: 'No API path provided. Use /api/openmrs?path=ws/rest/v1/session or /api/openmrs/ws/rest/v1/session',
       url: req.url,
       query: req.query 
     });
   }
 
   // Construct the full OpenMRS URL
-  // The apiPath should be like "ws/rest/v1/visit" or "ws/fhir2/R4/Condition"
   const openmrsUrl = `${OPENMRS_BASE_URL}/openmrs/${apiPath}${queryString}`;
 
   // Create Basic Auth header
@@ -74,10 +77,8 @@ export default async function handler(req, res) {
   const authHeader = `Basic ${credentials}`;
 
   try {
-    // Log for debugging
     console.log(`[Proxy] ${req.method} ${req.url}`);
     console.log(`[Proxy] Extracted path: ${apiPath}`);
-    console.log(`[Proxy] Query string: ${queryString}`);
     console.log(`[Proxy] Target URL: ${openmrsUrl}`);
 
     // Forward the request to OpenMRS
@@ -89,13 +90,9 @@ export default async function handler(req, res) {
       },
     });
 
-    // Get response data
     const data = await response.text();
-    
-    // Log response status for debugging
     console.log(`[Proxy] Response: ${response.status} ${response.statusText}`);
 
-    // If response is not OK, return error details
     if (!response.ok) {
       let errorData;
       try {
@@ -104,7 +101,6 @@ export default async function handler(req, res) {
         errorData = { error: data };
       }
       
-      // Set CORS headers even for errors
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -114,8 +110,7 @@ export default async function handler(req, res) {
         status: response.status,
         statusText: response.statusText,
         details: errorData,
-        requestedUrl: openmrsUrl,
-        originalUrl: req.url
+        requestedUrl: openmrsUrl
       });
     }
 
@@ -123,34 +118,25 @@ export default async function handler(req, res) {
     try {
       jsonData = JSON.parse(data);
     } catch (e) {
-      // If not JSON, return as text
       res.setHeader('Access-Control-Allow-Origin', '*');
       return res.status(response.status).send(data);
     }
 
-    // Set CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-    // Return the response
     return res.status(response.status).json(jsonData);
   } catch (error) {
     console.error('Proxy error:', error);
-    console.error('Error details:', {
-      message: error.message,
-      stack: error.stack,
-      url: openmrsUrl,
-      originalUrl: req.url
-    });
     
     res.setHeader('Access-Control-Allow-Origin', '*');
     return res.status(500).json({
       error: 'Proxy error',
       message: error.message,
       url: openmrsUrl,
-      path: apiPath,
-      originalUrl: req.url
+      path: apiPath
     });
   }
 }
+

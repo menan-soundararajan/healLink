@@ -1,1 +1,8 @@
-{}
+{
+  "rewrites": [
+    {
+      "source": "/api/openmrs/:path*",
+      "destination": "/api/openmrs?path=:path*"
+    }
+  ]
+}
