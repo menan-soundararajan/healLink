@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 const HealthAdvisoryCard = ({ patientUuid }) => {
   const [advisoryMessage, setAdvisoryMessage] = useState(null);
@@ -6,13 +6,7 @@ const HealthAdvisoryCard = ({ patientUuid }) => {
   const [error, setError] = useState(null);
   const [shouldShow, setShouldShow] = useState(false);
 
-  useEffect(() => {
-    if (patientUuid) {
-      checkConditionsAndGenerateAdvisory(patientUuid);
-    }
-  }, [patientUuid]);
-
-  const checkConditionsAndGenerateAdvisory = async (patientUuid) => {
+  const checkConditionsAndGenerateAdvisory = useCallback(async (patientUuid) => {
     setLoading(true);
     setError(null);
     setShouldShow(false);
@@ -41,7 +35,13 @@ const HealthAdvisoryCard = ({ patientUuid }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []); // Empty dependency array since patientUuid is passed as parameter
+
+  useEffect(() => {
+    if (patientUuid) {
+      checkConditionsAndGenerateAdvisory(patientUuid);
+    }
+  }, [patientUuid, checkConditionsAndGenerateAdvisory]);
 
   const fetchDiagnosis = async (patientUuid) => {
     const isVercel = window.location.hostname.includes('vercel.app') || process.env.NODE_ENV === 'production';
