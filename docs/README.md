@@ -75,6 +75,32 @@ Summary of the complete implementation including architecture, features, and com
 - Testing
 - Deployment considerations
 
+### 6. [Health Advisory LLM Feature](./HEALTH_ADVISORY_LLM.md)
+Complete documentation for the AI-powered Health Advisory feature.
+
+**Contents:**
+- Feature overview and description
+- Condition checking logic
+- LLM integration and configuration
+- Setup instructions
+- UI design and styling
+- Error handling
+- Troubleshooting guide
+- Customization options
+
+### 7. [LLM API Configuration](./LLM_CONFIGURATION.md)
+Complete guide for configuring LLM (Large Language Model) API integration.
+
+**Contents:**
+- Supported providers (OpenAI, Anthropic, Custom)
+- Step-by-step setup instructions
+- Environment variables reference
+- Provider-specific configuration
+- Production deployment (Vercel)
+- Testing and troubleshooting
+- Security best practices
+- Cost considerations
+
 ## Quick Start
 
 For a quick setup, see the [Quick Start Guide](./QUICK_START.md).
@@ -237,6 +263,8 @@ npm run build
 - [OpenMRS URLs Reference](./OPENMRS_URLS.md)
 - [CORS Proxy Setup](./CORS_PROXY_SETUP.md)
 - [Implementation Summary](./IMPLEMENTATION_SUMMARY.md)
+- [Health Advisory LLM Feature](./HEALTH_ADVISORY_LLM.md)
+- [LLM API Configuration](./LLM_CONFIGURATION.md)
 - [Main README](../README.md)
 
 ## Version History
