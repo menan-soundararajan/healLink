@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { openmrsFetch } from '../utils/openmrsFetch';
 
 const HealthAdvisoryCard = ({ patientUuid }) => {
   const [advisoryMessage, setAdvisoryMessage] = useState(null);
@@ -68,16 +69,12 @@ const HealthAdvisoryCard = ({ patientUuid }) => {
       headers['Authorization'] = `Basic ${credentials}`;
     }
 
-    const response = await fetch(url, {
+    const result = await openmrsFetch(url, {
       method: 'GET',
       headers: headers,
     });
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch diagnosis: ${response.status}`);
-    }
-
-    return await response.json();
+    return result.data;
   };
 
   const fetchMedications = async (patientUuid) => {
@@ -102,16 +99,12 @@ const HealthAdvisoryCard = ({ patientUuid }) => {
       headers['Authorization'] = `Basic ${credentials}`;
     }
 
-    const response = await fetch(url, {
+    const result = await openmrsFetch(url, {
       method: 'GET',
       headers: headers,
     });
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch medications: ${response.status}`);
-    }
-
-    return await response.json();
+    return result.data;
   };
 
   const checkPreEclampsiaCondition = (diagnosisData) => {
@@ -196,7 +189,7 @@ const HealthAdvisoryCard = ({ patientUuid }) => {
       }
       
       if (items.length > 0) {
-        // Return a single <ul> with all items (bullet points)
+        // Return a single <ul> with all items (bullet points) - same font size as other content
         return '<ul class="ps-3 mb-2">'  +
         items.map(item => `<li class="mb-1">${item}</li>`).join('') + 
           '</ul>';
@@ -206,14 +199,24 @@ const HealthAdvisoryCard = ({ patientUuid }) => {
 
     // Process headings and formatting
     formatted = formatted
-      .replace(/^### (.*$)/gim, '<h6 class="fw-bold mt-2 mb-0">$1</h6>')
-      .replace(/^## (.*$)/gim, '<h5 class="fw-bold mt-2 mb-0">$1</h5>')
-      .replace(/^# (.*$)/gim, '<h5 class="fw-bold mt-2 mb-0">$1</h5>')
+      .replace(/^### (.*$)/gim, '<div class="fw-bold mt-2 mb-1" style="font-size: 0.9rem;">$1</div>')
+      .replace(/^## (.*$)/gim, '<div class="fw-bold mt-2 mb-1" style="font-size: 0.95rem;">$1</div>')
+      .replace(/^# (.*$)/gim, '<div class="fw-bold mt-2 mb-1" style="font-size: 0.95rem;">$1</div>')
       .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/gim, '<em>$1</em>');
+    
+    // Remove bold styling from Lifestyle section
+    formatted = formatted.replace(
+      /(## 🌱 Life style[^<]*<\/div>)([\s\S]*?)(?=##|$)/gi,
+      (match, heading, content) => {
+        // Remove all <strong> tags but preserve the text content
+        const processedContent = content.replace(/<strong>(.*?)<\/strong>/gi, '$1');
+        return heading + processedContent;
+      }
+    );
 
-    // Remove all <br> tags immediately after headings
-    formatted = formatted.replace(/(<\/h[5-6]>)\s*<br>\s*/gi, '$1');
+    // Remove all <br> tags immediately after headings (now divs)
+    formatted = formatted.replace(/(<\/div>)\s*<br>\s*/gi, '$1');
     // Remove multiple consecutive <br> tags
     formatted = formatted.replace(/<br>\s*<br>/gi, '<br>');
     // Convert remaining newlines to <br>, but preserve list structure (no <br> inside <ul> or <ol>)
@@ -224,9 +227,11 @@ const HealthAdvisoryCard = ({ patientUuid }) => {
       const ulCloseCount = (before.match(/<\/ul>/gi) || []).length;
       const olOpenCount = (before.match(/<ol[^>]*>/gi) || []).length;
       const olCloseCount = (before.match(/<\/ol>/gi) || []).length;
+      const divOpenCount = (before.match(/<div[^>]*>/gi) || []).length;
+      const divCloseCount = (before.match(/<\/div>/gi) || []).length;
       
-      // If we're inside a list tag, don't add <br>
-      if ((ulOpenCount > ulCloseCount) || (olOpenCount > olCloseCount)) {
+      // If we're inside a list tag or div (heading), don't add <br>
+      if ((ulOpenCount > ulCloseCount) || (olOpenCount > olCloseCount) || (divOpenCount > divCloseCount)) {
         return '';
       }
       return '<br>';
@@ -279,7 +284,7 @@ const HealthAdvisoryCard = ({ patientUuid }) => {
                 style={{
                   lineHeight: '1.5',
                   color: '#333',
-                  fontSize: '0.9rem'
+                  fontSize: '0.85rem'
                 }}
               />
             )}

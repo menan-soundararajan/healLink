@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { openmrsFetch } from '../utils/openmrsFetch';
 
 const LabReportsList = ({ patientUuid }) => {
   const [labReports, setLabReports] = useState([]);
@@ -44,16 +45,12 @@ const LabReportsList = ({ patientUuid }) => {
         headers['Authorization'] = `Basic ${credentials}`;
       }
 
-      const response = await fetch(url, {
+      const result = await openmrsFetch(url, {
         method: 'GET',
         headers: headers,
       });
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch lab reports: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
+      const data = result.data;
       
       // Filter and process observations
       if (data.results && data.results.length > 0) {

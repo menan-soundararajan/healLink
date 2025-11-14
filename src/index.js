@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { GoogleOAuthProvider } from '@react-oauth/google';
+import { OpenMRSLoadingProvider } from './contexts/OpenMRSLoadingContext';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
@@ -24,7 +25,9 @@ const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-      <App />
+      <OpenMRSLoadingProvider>
+        <App />
+      </OpenMRSLoadingProvider>
     </GoogleOAuthProvider>
   </React.StrictMode>
 );

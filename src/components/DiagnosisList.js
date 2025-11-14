@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { openmrsFetch } from '../utils/openmrsFetch';
 
 const DiagnosisList = ({ patientUuid }) => {
   const [conditions, setConditions] = useState([]);
@@ -41,16 +42,12 @@ const DiagnosisList = ({ patientUuid }) => {
         headers['Authorization'] = `Basic ${credentials}`;
       }
 
-      const response = await fetch(url, {
+      const result = await openmrsFetch(url, {
         method: 'GET',
         headers: headers,
       });
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch conditions: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
+      const data = result.data;
       
       // Parse FHIR Condition resources
       if (data.entry && data.entry.length > 0) {

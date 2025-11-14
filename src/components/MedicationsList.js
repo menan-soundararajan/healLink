@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { openmrsFetch } from '../utils/openmrsFetch';
 
 const MedicationsList = ({ patientUuid }) => {
   const [medications, setMedications] = useState([]);
@@ -44,16 +45,12 @@ const MedicationsList = ({ patientUuid }) => {
         headers['Authorization'] = `Basic ${credentials}`;
       }
 
-      const response = await fetch(url, {
+      const result = await openmrsFetch(url, {
         method: 'GET',
         headers: headers,
       });
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch medications: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
+      const data = result.data;
       
       // Extract medication orders with full details
       if (data.results && data.results.length > 0) {

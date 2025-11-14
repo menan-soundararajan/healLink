@@ -65,11 +65,23 @@ export const generateHealthAdvisory = async (medicationResponse, diagnosisRespon
   try {
     const prompt = `Now act as my health advisor, suggest in a gentle and empathetic way:
 
-1. Explain what Pre-eclampsia is and why it matters.
+1. Briefly explain what Pre-eclampsia is and why it matters, using limited words (20–45).  
+   This explanation must appear under the heading: "🩺 Pre-eclampsia"  
+   (Use a small, medically relevant icon before the heading.)
 
-2. Explain simply why the patient should take Aspirin to manage Pre-eclampsia.
+2. "Why aspirin has been given" – describe using limited words (20–45).  
+   This explanation must appear under the heading: "💊 Why aspirin has been given"  
+   (Use a small pill/medicine-related icon before the heading.)
 
-3. Provide 3-5 short, positive lifestyle suggestions based on Google Health guidelines (such as diet, rest, stress reduction, and blood pressure monitoring).
+3. Provide a limited-word description explaining why it is important for the patient to take the medication.  
+   This section must appear under the heading: "⚠️ Importance of taking it"  
+   (Use a small warning/importance icon.)
+
+4. Provide 3–5 short, positive lifestyle suggestions based on Google Health guidelines  
+   (such as diet, rest, stress reduction, and blood pressure monitoring).  
+   Each lifestyle suggestion should contain 30–50 words.  
+   This section must appear under the heading: "🌱 Life style"  
+   (Use a small healthy-living icon.)
 
 Patient Diagnosis Data:
 ${JSON.stringify(diagnosisResponse, null, 2)}
@@ -174,24 +186,28 @@ Format the response with clear sections using ## for main headings. Be warm, sup
  * Fallback message when LLM is not available
  */
 const getFallbackMessage = () => {
-  return `## Explanation
+  return `## Pre-eclampsia
 
-Pre-eclampsia is a pregnancy complication characterized by high blood pressure and signs of damage to another organ system, most often the liver and kidneys. It typically begins after 20 weeks of pregnancy and can affect both the mother and the developing baby. This condition requires careful monitoring and management to ensure the health and safety of both you and your baby.
+Pre-eclampsia is a pregnancy complication characterized by high blood pressure and signs of damage to another organ system, most often the liver and kidneys. It typically begins after 20 weeks of pregnancy and can affect both the mother and the developing baby.
 
-## Why Aspirin
+## Why aspirin has been given
 
-Low-dose Aspirin is often prescribed during pregnancy for women at risk of pre-eclampsia. Research has shown that taking a low dose of Aspirin (typically 81mg) daily, starting early in pregnancy, can help reduce the risk of developing pre-eclampsia. Aspirin works by helping to improve blood flow to the placenta and reducing inflammation, which are important factors in preventing this condition.
+Low-dose Aspirin is often prescribed during pregnancy for women at risk of pre-eclampsia. Research has shown that taking a low dose of Aspirin (typically 81mg) daily, starting early in pregnancy, can help reduce the risk of developing pre-eclampsia. Aspirin works by helping to improve blood flow to the placenta and reducing inflammation.
 
-## Lifestyle Tips
+## Importance of taking it
 
-1. **Regular Prenatal Care:** Attend all scheduled prenatal appointments to monitor your blood pressure and overall health.
+Taking Aspirin as prescribed is crucial for managing pre-eclampsia risk. It helps improve blood flow to the placenta, which is essential for your baby's growth and development. Consistent use can significantly reduce the risk of complications for both you and your baby.
 
-2. **Healthy Diet:** Focus on a balanced diet rich in fruits, vegetables, whole grains, and lean proteins. Limit processed foods and sodium intake.
+## Life style
 
-3. **Stay Hydrated:** Drink plenty of water throughout the day to support healthy blood circulation.
+1. **Regular Prenatal Care:** Attend all scheduled prenatal appointments to monitor your blood pressure and overall health. Regular check-ups allow your healthcare provider to detect any changes early and adjust your treatment plan as needed. This proactive approach helps ensure the best outcomes for you and your baby.
 
-4. **Rest and Sleep:** Ensure you get adequate rest and sleep, as fatigue can impact blood pressure.
+2. **Healthy Diet:** Focus on a balanced diet rich in fruits, vegetables, whole grains, and lean proteins. Limit processed foods and sodium intake. A nutritious diet supports healthy blood pressure and provides essential nutrients for your baby's development. Consider working with a nutritionist to create a meal plan that meets your specific needs.
 
-5. **Monitor Symptoms:** Be aware of warning signs such as severe headaches, vision changes, or sudden swelling, and contact your healthcare provider immediately if these occur.`;
+3. **Stay Hydrated:** Drink plenty of water throughout the day to support healthy blood circulation. Proper hydration helps maintain blood volume and can support healthy blood pressure levels. Aim for at least 8-10 glasses of water daily, and adjust based on your activity level and healthcare provider's recommendations.
+
+4. **Rest and Sleep:** Ensure you get adequate rest and sleep, as fatigue can impact blood pressure. Aim for 7-9 hours of quality sleep each night and take breaks during the day when needed. Creating a comfortable sleep environment and establishing a regular sleep routine can help improve your rest quality.
+
+5. **Monitor Symptoms:** Be aware of warning signs such as severe headaches, vision changes, or sudden swelling, and contact your healthcare provider immediately if these occur. Keep a symptom diary to track any changes and share this information with your healthcare team during appointments.`;
 };
 

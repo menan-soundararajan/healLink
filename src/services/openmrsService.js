@@ -60,18 +60,16 @@ export const loginOpenMRS = async () => {
       headers['Authorization'] = getAuthHeader();
     }
     
-    const response = await fetch(url, {
+    // Use openmrsFetch wrapper for global loading state
+    const { openmrsFetch } = await import('../utils/openmrsFetch');
+    const result = await openmrsFetch(url, {
       method: 'GET',
       headers: headers,
     });
 
-    if (response.ok) {
-      const data = await response.json();
-      console.log('OpenMRS login successful:', data);
-      return { success: true, data };
-    } else {
-      throw new Error(`OpenMRS login failed: ${response.statusText}`);
-    }
+    const data = result.data;
+    console.log('OpenMRS login successful:', data);
+    return { success: true, data };
   } catch (error) {
     console.error('Error logging into OpenMRS:', error);
     console.error('Error details:', {
@@ -122,42 +120,32 @@ export const searchPatientByEmail = async (email) => {
       headers['Authorization'] = getAuthHeader();
     }
 
-    // Search for patient
-    const response = await fetch(url, {
+    // Use openmrsFetch wrapper for global loading state
+    const { openmrsFetch } = await import('../utils/openmrsFetch');
+    const result = await openmrsFetch(url, {
       method: 'GET',
       headers: headers,
     });
 
-    if (!response.ok) {
-      if (response.status === 401) {
-        throw new Error('Authentication failed: Invalid OpenMRS credentials');
-      } else if (response.status === 404) {
-        throw new Error('Patient not found with the provided email');
-      } else if (response.status === 403) {
-        throw new Error('Access forbidden: Insufficient permissions');
-      }
-      throw new Error(`Failed to fetch patient: ${response.status} ${response.statusText}`);
-    }
-
-    const data = await response.json();
+    const data = result.data;
     
-    if (data.results && data.results.length > 0) {
-      const patient = data.results[0];
-      
-      // Fetch full patient details including person attributes
-      const patientDetails = await getPatientDetails(patient.uuid);
-      
-      return {
-        success: true,
-        patient: patientDetails || patient,
-      };
-    } else {
+    // Check if results array is empty or null
+    if (!data.results || data.results.length === 0) {
       return {
         success: false,
-        error: 'No patient found with this email',
+        error: 'User not registered',
         patient: null,
       };
     }
+    
+    // Patient found - fetch full patient details
+    const patient = data.results[0];
+    const patientDetails = await getPatientDetails(patient.uuid);
+    
+    return {
+      success: true,
+      patient: patientDetails || patient,
+    };
   } catch (error) {
     console.error('Error searching for patient:', error);
     
@@ -206,17 +194,13 @@ const getPatientDetails = async (uuid) => {
       headers['Authorization'] = getAuthHeader();
     }
     
-    const response = await fetch(url, {
+    const { openmrsFetch } = await import('../utils/openmrsFetch');
+    const result = await openmrsFetch(url, {
       method: 'GET',
       headers: headers,
     });
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch patient details: ${response.statusText}`);
-    }
-
-    const patient = await response.json();
-    return patient;
+    return result.data;
   } catch (error) {
     console.error('Error fetching patient details:', error);
     return null;

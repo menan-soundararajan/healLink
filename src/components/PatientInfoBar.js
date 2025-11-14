@@ -1,6 +1,7 @@
 import React from 'react';
+import PregnancyProgressBar from './PregnancyProgressBar';
 
-const PatientInfoBar = ({ patientData, gestationalAge }) => {
+const PatientInfoBar = ({ patientData, gestationalAge, lmpDate, eddDate }) => {
   if (!patientData || !patientData.person) {
     return null;
   }
@@ -31,26 +32,48 @@ const PatientInfoBar = ({ patientData, gestationalAge }) => {
   }
   const ageDisplay = age !== undefined && age !== null ? `${age} years` : 'Not specified';
 
-  // Get mobile number from person attributes
-  const getMobileNumber = () => {
-    if (!person.attributes || person.attributes.length === 0) {
-      return 'Not available';
+  // Get email address from patient identifiers
+  const getEmailAddress = () => {
+    // First, try to get email from patient identifiers
+    if (patientData.identifiers && patientData.identifiers.length > 0) {
+      const emailIdentifier = patientData.identifiers.find(
+        identifier => identifier.display && identifier.display.startsWith('Email Address')
+      );
+      
+      if (emailIdentifier) {
+        // Extract email from the identifier
+        // The display might be "Email Address: patient@example.com" or just the identifier value
+        if (emailIdentifier.identifier) {
+          return emailIdentifier.identifier;
+        }
+        // If identifier field is not available, try to extract from display
+        const displayParts = emailIdentifier.display.split(':');
+        if (displayParts.length > 1) {
+          return displayParts[1].trim();
+        }
+        return emailIdentifier.display.replace('Email Address', '').trim();
+      }
+    }
+    
+    // Fallback: try person attributes if identifiers don't have email
+    if (person.attributes && person.attributes.length > 0) {
+      const emailAttribute = person.attributes.find(
+        attr => attr.attributeType && (
+          attr.attributeType.display === 'Email' ||
+          attr.attributeType.uuid === '58f43b5e-5311-4512-b0d4-24a2a7f3a4e2' ||
+          attr.attributeType.display?.toLowerCase().includes('email')
+        )
+      );
+
+      if (emailAttribute) {
+        return emailAttribute.value;
+      }
     }
 
-    // Look for mobile/phone attribute
-    const mobileAttribute = person.attributes.find(
-      attr => attr.attributeType && (
-        attr.attributeType.display?.toLowerCase().includes('phone') ||
-        attr.attributeType.display?.toLowerCase().includes('mobile') ||
-        attr.attributeType.display?.toLowerCase().includes('telephone') ||
-        attr.attributeType.uuid === '14d4f066-15f5-102d-96e4-000c29c2a5d7' // Common phone UUID
-      )
-    );
-
-    return mobileAttribute ? mobileAttribute.value : 'Not available';
+    return 'Not available';
   };
 
-  const mobileNumber = getMobileNumber();
+  const emailAddress = getEmailAddress();
 
   // Get avatar URL based on gender
   const getAvatarUrl = (gender) => {
@@ -98,15 +121,17 @@ const PatientInfoBar = ({ patientData, gestationalAge }) => {
           <div className="d-flex flex-column">
             <h6 className="mb-1 fw-bold text-dark">{displayName}</h6>
             <small className="text-muted mb-1">Age: {ageDisplay}</small>
-            <small className="text-muted">Mobile: {mobileNumber}</small>
+            <small className="text-muted">Email: {emailAddress}</small>
           </div>
         </div>
 
         {/* Gestational Age Column - remaining space */}
         <div className="col-md d-flex align-items-center">
-          <p className="mb-0 text-muted">
-            {gestationalAge || 'Gestational age at birth (weeks): Not available'}
-          </p>
+          <PregnancyProgressBar 
+            gestationalAge={gestationalAge}
+            lmpDate={lmpDate}
+            eddDate={eddDate}
+          />
         </div>
       </div>
     </div>
