@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { openmrsFetch } from '../utils/openmrsFetch';
 
 const HealthAdvisoryCard = ({ patientUuid }) => {
@@ -6,47 +6,89 @@ const HealthAdvisoryCard = ({ patientUuid }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [shouldShow, setShouldShow] = useState(false);
-
-  const checkConditionsAndGenerateAdvisory = useCallback(async (patientUuid) => {
-    setLoading(true);
-    setError(null);
-    setShouldShow(false);
-    setAdvisoryMessage(null);
-
-    try {
-      const [diagnosisData, medicationData] = await Promise.all([
-        fetchDiagnosis(patientUuid),
-        fetchMedications(patientUuid)
-      ]);
-
-      const hasPreEclampsia = checkPreEclampsiaCondition(diagnosisData);
-      const hasAspirin = checkAspirinCondition(medicationData);
-
-      if (hasPreEclampsia && hasAspirin) {
-        setShouldShow(true);
-        const { generateHealthAdvisory } = await import('../services/llmService');
-        const message = await generateHealthAdvisory(medicationData, diagnosisData);
-        setAdvisoryMessage(message);
-      } else {
-        setShouldShow(false);
-      }
-    } catch (err) {
-      console.error('Error checking conditions:', {
-        message: err.message,
-        stack: err.stack,
-        patientUuid: patientUuid
-      });
-      setError(err.message || 'Failed to check health conditions');
-    } finally {
-      setLoading(false);
-    }
-  }, []); // Empty dependency array since patientUuid is passed as parameter
+  const hasFetchedRef = useRef(false);
+  const currentPatientUuidRef = useRef(null);
 
   useEffect(() => {
-    if (patientUuid) {
-      checkConditionsAndGenerateAdvisory(patientUuid);
+    // Prevent duplicate calls - only fetch if patientUuid changed or hasn't been fetched yet
+    if (!patientUuid) {
+      setShouldShow(false);
+      setAdvisoryMessage(null);
+      hasFetchedRef.current = false;
+      currentPatientUuidRef.current = null;
+      return;
     }
-  }, [patientUuid, checkConditionsAndGenerateAdvisory]);
+
+    // If same patientUuid and already fetched, don't fetch again
+    if (hasFetchedRef.current && currentPatientUuidRef.current === patientUuid) {
+      return;
+    }
+
+    // Mark as fetching for this patientUuid
+    hasFetchedRef.current = true;
+    currentPatientUuidRef.current = patientUuid;
+
+    const checkConditionsAndGenerateAdvisory = async () => {
+      setLoading(true);
+      setError(null);
+      setShouldShow(false);
+      setAdvisoryMessage(null);
+
+      try {
+        console.log('[HealthAdvisory] Fetching data for patient:', patientUuid);
+        
+        // Fetch diagnosis, medications, patient query response, and observations
+        const [diagnosisData, medicationData, patientQueryResponse, observationsData] = await Promise.all([
+          fetchDiagnosis(patientUuid),
+          fetchMedications(patientUuid),
+          fetchPatientQueryResponse(patientUuid),
+          fetchObservations(patientUuid)
+        ]);
+
+        // Check conditions: Diabetes/Hypertension (Active) AND Aspirin (Active)
+        const hasDiabetesOrHypertension = checkDiabetesOrHypertensionCondition(diagnosisData);
+        const hasAspirin = checkAspirinCondition(medicationData);
+
+        console.log('[HealthAdvisory] Conditions check:', {
+          hasDiabetesOrHypertension,
+          hasAspirin,
+          patientUuid
+        });
+
+        // Only show card if BOTH conditions are true
+        if (hasDiabetesOrHypertension && hasAspirin) {
+          setShouldShow(true);
+          console.log('[HealthAdvisory] Conditions met, calling LLM...');
+          
+          const { generateHealthAdvisory } = await import('../services/llmService');
+          // Pass minimal data to LLM: patient query, medications, and filtered observations
+          const message = await generateHealthAdvisory(
+            patientQueryResponse,
+            medicationData,
+            observationsData
+          );
+          
+          console.log('[HealthAdvisory] LLM response received:', message ? 'Yes' : 'No', message?.substring(0, 50));
+          setAdvisoryMessage(message);
+        } else {
+          setShouldShow(false);
+          console.log('[HealthAdvisory] Conditions not met, hiding card');
+        }
+      } catch (err) {
+        console.error('[HealthAdvisory] Error checking conditions:', {
+          message: err.message,
+          stack: err.stack,
+          patientUuid: patientUuid
+        });
+        setError(err.message || 'Failed to check health conditions');
+        setShouldShow(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkConditionsAndGenerateAdvisory();
+  }, [patientUuid]);
 
   const fetchDiagnosis = async (patientUuid) => {
     const isVercel = window.location.hostname.includes('vercel.app') || process.env.NODE_ENV === 'production';
@@ -107,7 +149,66 @@ const HealthAdvisoryCard = ({ patientUuid }) => {
     return result.data;
   };
 
-  const checkPreEclampsiaCondition = (diagnosisData) => {
+  const fetchPatientQueryResponse = async (patientUuid) => {
+    const isVercel = window.location.hostname.includes('vercel.app') || process.env.NODE_ENV === 'production';
+    const USE_PROXY = process.env.REACT_APP_USE_PROXY !== 'false';
+    const PROXY_URL = isVercel
+      ? '/api/openmrs'
+      : (process.env.REACT_APP_PROXY_URL || 'http://localhost:3001/api/openmrs');
+    const OPENMRS_BASE_URL = USE_PROXY ? PROXY_URL : 'https://openmrs6.arogya.cloud';
+
+    const url = USE_PROXY
+      ? `${OPENMRS_BASE_URL}/ws/rest/v1/patient/${patientUuid}?v=full`
+      : `${OPENMRS_BASE_URL}/openmrs/ws/rest/v1/patient/${patientUuid}?v=full`;
+
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+
+    if (!USE_PROXY) {
+      const credentials = btoa('admin:Admin123');
+      headers['Authorization'] = `Basic ${credentials}`;
+    }
+
+    const result = await openmrsFetch(url, {
+      method: 'GET',
+      headers: headers,
+    });
+
+    return result.data;
+  };
+
+  const fetchObservations = async (patientUuid) => {
+    const isVercel = window.location.hostname.includes('vercel.app') || process.env.NODE_ENV === 'production';
+    const USE_PROXY = process.env.REACT_APP_USE_PROXY !== 'false';
+    const PROXY_URL = isVercel
+      ? '/api/openmrs'
+      : (process.env.REACT_APP_PROXY_URL || 'http://localhost:3001/api/openmrs');
+    const OPENMRS_BASE_URL = USE_PROXY ? PROXY_URL : 'https://openmrs6.arogya.cloud';
+
+    const url = USE_PROXY
+      ? `${OPENMRS_BASE_URL}/ws/rest/v1/obs?patient=${patientUuid}&v=full`
+      : `${OPENMRS_BASE_URL}/openmrs/ws/rest/v1/obs?patient=${patientUuid}&v=full`;
+
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+
+    if (!USE_PROXY) {
+      const credentials = btoa('admin:Admin123');
+      headers['Authorization'] = `Basic ${credentials}`;
+    }
+
+    const result = await openmrsFetch(url, {
+      method: 'GET',
+      headers: headers,
+    });
+
+    return result.data;
+  };
+
+  // Check if diagnosis includes Diabetes or Hypertension with Active status
+  const checkDiabetesOrHypertensionCondition = (diagnosisData) => {
     if (!diagnosisData || !diagnosisData.entry || diagnosisData.entry.length === 0) {
       return false;
     }
@@ -115,6 +216,7 @@ const HealthAdvisoryCard = ({ patientUuid }) => {
     for (const entry of diagnosisData.entry) {
       const condition = entry.resource;
 
+      // Extract diagnostic name
       let diagnosticName = '';
       if (condition.code && condition.code.text) {
         diagnosticName = condition.code.text;
@@ -124,6 +226,7 @@ const HealthAdvisoryCard = ({ patientUuid }) => {
         diagnosticName = condition.display;
       }
 
+      // Extract status code
       let statusCode = null;
       if (condition.clinicalStatus && condition.clinicalStatus.coding && condition.clinicalStatus.coding.length > 0) {
         statusCode = condition.clinicalStatus.coding[0].code || '';
@@ -131,16 +234,20 @@ const HealthAdvisoryCard = ({ patientUuid }) => {
         statusCode = condition.clinicalStatus.text;
       }
 
+      // Check if status is Active (statusBadge === "Active")
       let isActive = false;
       if (statusCode) {
         const statusLower = statusCode.toLowerCase();
         isActive = statusLower === 'active';
       }
 
+      // Check if diagnostic name includes "Diabetes" or "Hypertension"
       const diagnosticNameLower = diagnosticName ? diagnosticName.toLowerCase() : '';
-      const isPreEclampsia = diagnosticNameLower === 'history of pre-eclampsia';
+      const isDiabetesOrHypertension = 
+        diagnosticNameLower.includes('diabetes') || 
+        diagnosticNameLower.includes('hypertension');
 
-      if (isPreEclampsia && isActive) {
+      if (isDiabetesOrHypertension && isActive) {
         return true;
       }
     }
@@ -148,6 +255,7 @@ const HealthAdvisoryCard = ({ patientUuid }) => {
     return false;
   };
 
+  // Check if medication includes Aspirin with Active status
   const checkAspirinCondition = (medicationData) => {
     if (!medicationData || !medicationData.results || medicationData.results.length === 0) {
       return false;
@@ -156,7 +264,10 @@ const HealthAdvisoryCard = ({ patientUuid }) => {
     for (const medication of medicationData.results) {
       const displayName = medication.display || '';
       const isAspirin = displayName.toLowerCase().includes('aspirin');
-      const isActive = medication.dateStopped === null;
+      
+      // Check if statusInfo === "Active" (dateStopped === null means Active)
+      const statusInfo = medication.dateStopped === null ? 'Active' : 'Past';
+      const isActive = statusInfo === 'Active';
 
       if (isAspirin && isActive) {
         return true;
@@ -171,57 +282,100 @@ const HealthAdvisoryCard = ({ patientUuid }) => {
 
     let formatted = message;
 
-    // Process numbered lists - find consecutive numbered items and group them into a single <ul> (bullet points)
-    // This regex finds blocks of consecutive numbered list items (1., 2., 3., etc.) and converts them to bullet points
-    formatted = formatted.replace(/((?:^|\n)\d+\.\s+[^\n]+(?:\n\d+\.\s+[^\n]+)*)/gm, (match) => {
-      // Extract all numbered items from this block
-      const items = [];
-      const lines = match.trim().split('\n');
-      
-      for (const line of lines) {
-        const itemMatch = line.match(/^\d+\.\s+(.+)$/);
-        if (itemMatch) {
-          let content = itemMatch[1].trim();
-          // Remove any leading number pattern (e.g., "1. " or "1.") from the content
-          content = content.replace(/^\d+\.\s*/, '');
-          items.push(content);
-        }
-      }
-      
-      if (items.length > 0) {
-        // Return a single <ul> with all items (bullet points) - same font size as other content
-        return '<ul class="ps-3 mb-2">'  +
-        items.map(item => `<li class="mb-1">${item}</li>`).join('') + 
-          '</ul>';
-      }
-      return match;
-    });
-
-    // Process headings and formatting
+    // Process headings and formatting first
     formatted = formatted
       .replace(/^### (.*$)/gim, '<div class="fw-bold mt-2 mb-1" style="font-size: 0.9rem;">$1</div>')
       .replace(/^## (.*$)/gim, '<div class="fw-bold mt-2 mb-1" style="font-size: 0.95rem;">$1</div>')
       .replace(/^# (.*$)/gim, '<div class="fw-bold mt-2 mb-1" style="font-size: 0.95rem;">$1</div>')
       .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/gim, '<em>$1</em>');
-    
-    // Remove bold styling from Lifestyle section
+
+    // Process Lifestyle section with special formatting
     formatted = formatted.replace(
       /(## 🌱 Life style[^<]*<\/div>)([\s\S]*?)(?=##|$)/gi,
       (match, heading, content) => {
-        // Remove all <strong> tags but preserve the text content
-        const processedContent = content.replace(/<strong>(.*?)<\/strong>/gi, '$1');
+        // Clean up the content - remove extra blank lines first
+        let processedContent = content
+          .replace(/\n{3,}/g, '\n') // Replace 3+ newlines with single newline
+          .replace(/^\s+|\s+$/gm, '') // Trim each line
+          .trim();
+
+        // Process numbered list items (1., 2., 3., etc.)
+        // Pattern: number. **Bold Title:** description text
+        // Handle multi-line descriptions that continue until next number
+        processedContent = processedContent.replace(/(\d+\.\s+)(\*\*([^*]+)\*\*:?\s*)([^\d]*?)(?=\d+\.|$)/gs, (itemMatch, number, boldPart, titleText, description) => {
+          const title = titleText.trim();
+          // Clean description - remove extra newlines, keep single spaces
+          const desc = description
+            .replace(/\n+/g, ' ') // Replace newlines with space
+            .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+            .trim();
+          
+          // Format: Bold title on one line, description on next line (single line break)
+          return `<div class="mb-2" style="line-height: 1.5;"><strong>${title}</strong><br>${desc}</div>`;
+        });
+
+        // If numbered items weren't processed, try alternative patterns
+        if (!processedContent.includes('<div class="mb-2">')) {
+          // Try pattern: **Title:** description (without numbers)
+          processedContent = processedContent.replace(/(\*\*([^*]+)\*\*:?\s*)([^\*]*?)(?=\*\*|$)/gs, (itemMatch, boldPart, titleText, description) => {
+            const title = titleText.trim();
+            const desc = description
+              .replace(/\n+/g, ' ')
+              .replace(/\s+/g, ' ')
+              .trim();
+            
+            if (desc) {
+              return `<div class="mb-2" style="line-height: 1.5;"><strong>${title}</strong><br>${desc}</div>`;
+            } else {
+              return `<div class="mb-2"><strong>${title}</strong></div>`;
+            }
+          });
+        }
+
+        // Final cleanup: remove any remaining excessive spacing
+        processedContent = processedContent
+          .replace(/\n{2,}/g, '') // Remove remaining double newlines
+          .replace(/(<\/div>)\s*(<div)/g, '$1$2'); // Remove spaces between divs
+        
         return heading + processedContent;
       }
     );
 
+    // Process numbered lists for other sections (not lifestyle)
+    formatted = formatted.replace(/((?:^|\n)\d+\.\s+[^\n]+(?:\n\d+\.\s+[^\n]+)*)/gm, (match) => {
+      // Only process if not already processed by lifestyle section
+      if (!match.includes('## 🌱')) {
+        const items = [];
+        const lines = match.trim().split('\n');
+        
+        for (const line of lines) {
+          const itemMatch = line.match(/^\d+\.\s+(.+)$/);
+          if (itemMatch) {
+            let content = itemMatch[1].trim();
+            content = content.replace(/^\d+\.\s*/, '');
+            items.push(content);
+          }
+        }
+        
+        if (items.length > 0) {
+          return '<ul class="ps-3 mb-2">'  +
+          items.map(item => `<li class="mb-1">${item}</li>`).join('') + 
+            '</ul>';
+        }
+      }
+      return match;
+    });
+
     // Remove all <br> tags immediately after headings (now divs)
     formatted = formatted.replace(/(<\/div>)\s*<br>\s*/gi, '$1');
     // Remove multiple consecutive <br> tags
-    formatted = formatted.replace(/<br>\s*<br>/gi, '<br>');
-    // Convert remaining newlines to <br>, but preserve list structure (no <br> inside <ul> or <ol>)
+    formatted = formatted.replace(/(<br>\s*){2,}/gi, '<br>');
+    // Remove blank lines between sections
+    formatted = formatted.replace(/(<\/div>)\s*\n\s*(<div)/gi, '$1$2');
+    
+    // Convert remaining newlines to <br>, but preserve list structure
     formatted = formatted.replace(/\n/g, (match, offset, string) => {
-      // Check if we're inside a list tag by counting open/close tags before this position
       const before = string.substring(0, offset);
       const ulOpenCount = (before.match(/<ul[^>]*>/gi) || []).length;
       const ulCloseCount = (before.match(/<\/ul>/gi) || []).length;
@@ -230,16 +384,19 @@ const HealthAdvisoryCard = ({ patientUuid }) => {
       const divOpenCount = (before.match(/<div[^>]*>/gi) || []).length;
       const divCloseCount = (before.match(/<\/div>/gi) || []).length;
       
-      // If we're inside a list tag or div (heading), don't add <br>
       if ((ulOpenCount > ulCloseCount) || (olOpenCount > olCloseCount) || (divOpenCount > divCloseCount)) {
         return '';
       }
       return '<br>';
     });
 
+    // Final cleanup: remove any remaining excessive spacing
+    formatted = formatted.replace(/(<br>\s*){3,}/gi, '<br><br>');
+
     return formatted;
   };
 
+  // Only render if conditions are met
   if (!shouldShow && !loading) {
     return null;
   }
@@ -287,6 +444,11 @@ const HealthAdvisoryCard = ({ patientUuid }) => {
                   fontSize: '0.85rem'
                 }}
               />
+            )}
+            {!advisoryMessage && !loading && !error && shouldShow && (
+              <div className="text-muted small">
+                No advisory message available.
+              </div>
             )}
           </div>
         </div>

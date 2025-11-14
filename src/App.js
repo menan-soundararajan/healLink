@@ -310,7 +310,7 @@ function App() {
                 <DiagnosisCard patientUuid={patientData?.uuid} />
               </div>
               
-              {/* Health Advisory - Only shows when conditions are met */}
+              {/* Health Advisory - Only shows when both conditions are met */}
               <HealthAdvisoryCard patientUuid={patientData?.uuid} />
             </div>
           </div>
