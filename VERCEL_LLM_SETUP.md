@@ -58,9 +58,17 @@ After adding environment variables:
 - Must start with `REACT_APP_` (case-sensitive)
 - No typos in variable names
 
-**Check 3: Redeploy**
+**Check 3: Redeploy (CRITICAL)**
 - Environment variables are only loaded during build
-- You must redeploy after adding/changing variables
+- **You MUST redeploy after adding/changing variables**
+- Adding variables does NOT automatically update running deployments
+- Go to **Deployments** tab > Click on latest deployment > Click **Redeploy**
+- Or trigger a new deployment by pushing to your git branch
+
+**Check 3a: Environment Selection**
+- When adding variables, make sure to select **Production** environment
+- If you only selected Preview/Development, Production won't have the variables
+- Go back and edit each variable to include Production environment
 
 **Check 4: Browser Console**
 - Open Developer Tools (F12) > Console
@@ -130,25 +138,62 @@ After adding environment variables:
 
 ## Still Not Working?
 
-1. **Check Vercel build logs:**
-   - Go to Vercel > Deployments
-   - Click on latest deployment
-   - Check build logs for errors
+### Step 1: Verify Variables in Vercel Dashboard
 
-2. **Check browser console:**
-   - Open Developer Tools (F12)
-   - Look for error messages
-   - Check Network tab for failed requests
+1. Go to **Vercel** > **Settings** > **Environment Variables**
+2. Verify you see these three variables:
+   - `REACT_APP_LLM_PROVIDER` = `openai`
+   - `REACT_APP_LLM_API_KEY` = `sk-proj-...` (your actual key)
+   - `REACT_APP_LLM_MODEL` = `gpt-3.5-turbo` (optional)
+3. **Check Environment column** - Make sure **Production** is checked for all variables
+4. If Production is not checked, click on each variable and add Production environment
 
-3. **Verify API key:**
-   - Test API key directly with curl:
-     ```bash
-     curl https://api.openai.com/v1/models \
-       -H "Authorization: Bearer YOUR_API_KEY"
-     ```
+### Step 2: Force Redeploy
 
-4. **Check OpenAI dashboard:**
-   - Verify API key is active
-   - Check usage/credits
-   - Ensure no rate limits
+1. Go to **Vercel** > **Deployments**
+2. Find your latest deployment
+3. Click the **three dots** (⋯) menu
+4. Click **Redeploy**
+5. Make sure **Use existing Build Cache** is **UNCHECKED**
+6. Click **Redeploy**
+7. Wait for deployment to complete
+
+### Step 3: Check Build Logs
+
+1. Go to **Vercel** > **Deployments**
+2. Click on the latest deployment
+3. Click **Build Logs** tab
+4. Look for environment variables being loaded
+5. Check for any errors
+
+### Step 4: Check Browser Console
+
+1. Open your deployed app
+2. Open **Developer Tools** (F12) > **Console**
+3. Look for "Environment Variables Debug" log
+4. Check if `hasREACT_APP_LLM_API_KEY: true`
+5. If `false`, the variable is not being read
+
+### Step 5: Verify Variable Names
+
+Common mistakes:
+- ❌ `LLM_API_KEY` (missing `REACT_APP_` prefix)
+- ❌ `REACT_APP_llm_api_key` (wrong case - should be uppercase)
+- ❌ `REACT_APP_LLM_API_KEY ` (trailing space)
+- ✅ `REACT_APP_LLM_API_KEY` (correct)
+
+### Step 6: Verify API Key Directly
+
+Test your API key to ensure it's valid:
+```bash
+curl https://api.openai.com/v1/models \
+  -H "Authorization: Bearer YOUR_API_KEY"
+```
+
+### Step 7: Check OpenAI Dashboard
+
+1. Go to https://platform.openai.com/
+2. Verify API key is active
+3. Check usage/credits
+4. Ensure no rate limits
 

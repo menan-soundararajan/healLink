@@ -24,6 +24,24 @@ export const generateHealthAdvisory = async (medicationResponse, diagnosisRespon
   // Check if running in production and log configuration status
   const isProduction = process.env.NODE_ENV === 'production';
   
+  // Debug: Log all environment variables (for troubleshooting)
+  if (isProduction) {
+    console.log('Environment Variables Debug:', {
+      NODE_ENV: process.env.NODE_ENV,
+      hasREACT_APP_LLM_PROVIDER: !!process.env.REACT_APP_LLM_PROVIDER,
+      REACT_APP_LLM_PROVIDER: process.env.REACT_APP_LLM_PROVIDER,
+      hasREACT_APP_LLM_API_KEY: !!process.env.REACT_APP_LLM_API_KEY,
+      REACT_APP_LLM_API_KEY_length: process.env.REACT_APP_LLM_API_KEY?.length || 0,
+      REACT_APP_LLM_API_KEY_prefix: process.env.REACT_APP_LLM_API_KEY?.substring(0, 10) || 'not set',
+      hasREACT_APP_LLM_MODEL: !!process.env.REACT_APP_LLM_MODEL,
+      REACT_APP_LLM_MODEL: process.env.REACT_APP_LLM_MODEL,
+      // Also check the constants
+      LLM_PROVIDER: LLM_PROVIDER,
+      LLM_API_KEY_set: !!LLM_API_KEY,
+      LLM_API_URL: LLM_API_URL
+    });
+  }
+  
   if (!LLM_API_KEY) {
     const errorMsg = isProduction 
       ? 'LLM API key not configured in Vercel. Please add REACT_APP_LLM_API_KEY environment variable. Using fallback message.'
@@ -31,6 +49,7 @@ export const generateHealthAdvisory = async (medicationResponse, diagnosisRespon
     console.warn(errorMsg);
     console.warn('LLM Provider:', LLM_PROVIDER);
     console.warn('LLM API URL:', LLM_API_URL);
+    console.warn('Troubleshooting: Check Vercel Settings > Environment Variables and ensure REACT_APP_LLM_API_KEY is set for Production environment.');
     return getFallbackMessage();
   }
 
