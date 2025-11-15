@@ -14,9 +14,6 @@ import { useOpenMRSLoading } from './contexts/OpenMRSLoadingContext';
 import { searchPatientByEmail } from './services/openmrsService';
 import './App.css';
 
-// Test email for patient query - using hardcoded email instead of Google login email
-const TEST_PATIENT_EMAIL = 'perera@gmail.com';
-
 function App() {
   const [user, setUser] = useState(null);
   const [patientData, setPatientData] = useState(null);
@@ -29,6 +26,22 @@ function App() {
   const { isLoading: openMRSLoading, error: openMRSError, clearError } = useOpenMRSLoading();
 
   const fetchPatientData = async (email) => {
+    // Validate email input
+    if (!email || typeof email !== 'string' || !email.trim()) {
+      setError('Invalid email address');
+      setLoading(false);
+      return;
+    }
+
+    // Sanitize email - remove whitespace and validate format
+    const sanitizedEmail = email.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(sanitizedEmail)) {
+      setError('Invalid email format');
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setPatientData(null);
@@ -37,7 +50,7 @@ function App() {
     setEddDate(null);
 
     try {
-      const result = await searchPatientByEmail(email);
+      const result = await searchPatientByEmail(sanitizedEmail);
       
       if (result.success && result.patient) {
         // Store raw patient data for PatientInfoCard
@@ -48,11 +61,16 @@ function App() {
           await fetchPregnancyData(result.patient.uuid);
         }
       } else {
-        setError(result.error || 'Patient not found');
+        // Check if it's a "User not registered" error
+        if (result.error === 'User not registered') {
+          setError('User not registered');
+        } else {
+          setError(result.error || 'Patient not found');
+        }
       }
     } catch (err) {
       console.error('Error fetching patient data:', err);
-      setError(err.message || 'Failed to fetch patient data');
+      setError('Failed to fetch OpenMRS patient data');
     } finally {
       setLoading(false);
     }
@@ -186,10 +204,22 @@ function App() {
     try {
       const decoded = jwtDecode(credentialResponse.credential);
       setUser(decoded);
-      console.log('Login successful:', decoded);
+      // Log login success without sensitive information
+      console.log('Login successful');
       
-      // After successful Google login, fetch patient data from OpenMRS using test email
-      await fetchPatientData(TEST_PATIENT_EMAIL);
+      // Get authenticated user's email from Google OAuth JWT
+      const userEmail = decoded.email;
+      
+      // Verify user is authenticated and has email
+      if (!userEmail) {
+        console.error('No email found in user token');
+        setError('Please sign in to view patient details. Email not available.');
+        return;
+      }
+      
+      // After successful Google login, fetch patient data from OpenMRS using authenticated user's email
+      // Email is sanitized and URL-encoded in fetchPatientData function
+      await fetchPatientData(userEmail);
     } catch (error) {
       console.error('Error decoding token:', error);
       setError('Failed to process login');
@@ -280,12 +310,32 @@ function App() {
                    eddDate={eddDate}
                  />
           
+          {/* Show authentication error message if user not authenticated or no email */}
+          {error && (error.includes('Please sign in') || error.includes('Email not available')) && !loading && (
+            <div className="container-fluid mt-4 px-4">
+              <div className="alert alert-info text-center" role="alert">
+                <h5 className="mb-0">Please sign in to view patient details</h5>
+                <p className="mb-0 mt-2 text-muted">Please sign in with your Google account to access your patient information.</p>
+              </div>
+            </div>
+          )}
+
           {/* Show "User not registered" message if patient not found */}
           {error && error === 'User not registered' && !loading && (
             <div className="container-fluid mt-4 px-4">
               <div className="alert alert-warning text-center" role="alert">
                 <h5 className="mb-0">User not registered</h5>
                 <p className="mb-0 mt-2 text-muted">No patient record found with the provided email address.</p>
+              </div>
+            </div>
+          )}
+
+          {/* Show OpenMRS API error message */}
+          {error && error === 'Failed to fetch OpenMRS patient data' && !loading && (
+            <div className="container-fluid mt-4 px-4">
+              <div className="alert alert-danger text-center" role="alert">
+                <h5 className="mb-0">Failed to fetch OpenMRS patient data</h5>
+                <p className="mb-0 mt-2 text-muted">Unable to retrieve patient information. Please try again later.</p>
               </div>
             </div>
           )}
