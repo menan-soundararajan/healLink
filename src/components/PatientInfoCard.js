@@ -1,21 +1,7 @@
 import React from 'react';
+import SriLankanAvatar from './avatars/SriLankanAvatar';
 
 const PatientInfoCard = ({ patient, loading, error }) => {
-  // Get avatar URL based on gender
-  const getAvatarUrl = (gender) => {
-    if (!gender) {
-      return 'https://ui-avatars.com/api/?name=Patient&background=random&size=200';
-    }
-    
-    const genderUpper = gender.toUpperCase();
-    if (genderUpper === 'M' || genderUpper === 'MALE') {
-      return 'https://i.pravatar.cc/200?img=12'; // Male avatar
-    } else if (genderUpper === 'F' || genderUpper === 'FEMALE') {
-      return 'https://i.pravatar.cc/200?img=47'; // Female avatar
-    } else {
-      return 'https://ui-avatars.com/api/?name=Patient&background=random&size=200'; // Generic avatar
-    }
-  };
 
   // Format gender display
   const formatGender = (gender) => {
@@ -95,7 +81,6 @@ const PatientInfoCard = ({ patient, loading, error }) => {
   const ageDisplay = age !== undefined && age !== null ? `${age} years` : 'Not specified';
   
   const gender = formatGender(person.gender);
-  const avatarUrl = getAvatarUrl(person.gender);
 
   return (
     <div className="mb-4">
@@ -103,20 +88,21 @@ const PatientInfoCard = ({ patient, loading, error }) => {
         <div className="card-body">
           {/* Profile Image */}
           <div className="text-center mb-4">
-            <img
-              src={avatarUrl}
-              alt={displayName}
-              className="rounded-circle border border-3 border-primary"
+            <div
+              className="rounded-circle border border-3 border-primary d-inline-flex align-items-center justify-content-center"
               style={{
                 width: '120px',
                 height: '120px',
-                objectFit: 'cover',
-                backgroundColor: '#f8f9fa'
+                backgroundColor: '#f8f9fa',
+                overflow: 'hidden'
               }}
-              onError={(e) => {
-                e.target.src = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(displayName) + '&background=random&size=200';
-              }}
-            />
+            >
+              <SriLankanAvatar 
+                gender={person.gender} 
+                size={120}
+                className="rounded-circle"
+              />
+            </div>
           </div>
 
           {/* Patient Name */}

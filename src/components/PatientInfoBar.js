@@ -1,5 +1,6 @@
 import React from 'react';
 import PregnancyProgressBar from './PregnancyProgressBar';
+import SriLankanAvatar from './avatars/SriLankanAvatar';
 
 const PatientInfoBar = ({ patientData, gestationalAge, lmpDate, eddDate }) => {
   if (!patientData || !patientData.person) {
@@ -75,45 +76,30 @@ const PatientInfoBar = ({ patientData, gestationalAge, lmpDate, eddDate }) => {
 
   const emailAddress = getEmailAddress();
 
-  // Get avatar URL based on gender
-  const getAvatarUrl = (gender) => {
-    if (!gender) {
-      return 'https://ui-avatars.com/api/?name=Patient&background=random&size=100';
-    }
-
-    const genderUpper = gender.toUpperCase();
-    if (genderUpper === 'M' || genderUpper === 'MALE') {
-      // Male avatar PNG
-      return 'https://i.pravatar.cc/100?img=12';
-    } else if (genderUpper === 'F' || genderUpper === 'FEMALE') {
-      // Female avatar PNG
-      return 'https://i.pravatar.cc/100?img=47';
-    } else {
-      return 'https://ui-avatars.com/api/?name=Patient&background=random&size=100';
-    }
-  };
-
-  const avatarUrl = getAvatarUrl(person.gender);
-
   return (
     <div className="container-fluid px-4 py-3 bg-light border-bottom">
       <div className="row align-items-center">
         {/* Avatar Column - col-md-1 */}
         <div className="col-md-1 d-flex justify-content-center">
-          <img
-            src={avatarUrl}
-            alt={displayName}
+          <div
             className="rounded-circle"
             style={{
               width: '60px',
               height: '60px',
-              objectFit: 'cover',
-              border: '2px solid #dee2e6'
+              border: '2px solid #dee2e6',
+              overflow: 'hidden',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: '#f8f9fa'
             }}
-            onError={(e) => {
-              e.target.src = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(displayName) + '&background=random&size=100';
-            }}
-          />
+          >
+            <SriLankanAvatar 
+              gender={person.gender} 
+              size={60}
+              className="rounded-circle"
+            />
+          </div>
         </div>
 
         {/* Patient Info Column - col-md-3 */}
